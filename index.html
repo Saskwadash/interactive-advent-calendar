@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Advent Calendar 2024</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        const { 
+            Gift, Star, Sparkles, Music, BookOpen, 
+            Coffee, Heart, Camera, Palette, Mountain 
+        } = lucide;
+
+        const AdventCalendar = () => {
+            const [openDoor, setOpenDoor] = useState(null);
+            const currentDate = new Date();
+
+            const doorContent = {
+                1: {
+                    icon: 'Star',
+                    title: "Welcome to December!",
+                    content: "Your personal advent calendar begins. Each day holds something special just for you.",
+                    type: "text"
+                },
+                2: {
+                    icon: 'Music',
+                    title: "Today's Vibe",
+                    content: "Listen to: Your favorite cozy winter playlist",
+                    link: "https://open.spotify.com",
+                    type: "music"
+                },
+                3: {
+                    icon: 'Coffee',
+                    title: "Self-Care Moment",
+                    content: "Make yourself a warm drink and spend 10 minutes doing absolutely nothing. Just sit, sip, and exist.",
+                    type: "text"
+                },
+                4: {
+                    icon: 'BookOpen',
+                    title: "Creative Prompt",
+                    content: "Write down 3 things that made you smile this week, no matter how small.",
+                    type: "text"
+                },
+                5: {
+                    icon: 'Heart',
+                    title: "Affirmation",
+                    content: "You're doing better than you think. Progress isn't always visible, but it's always happening.",
+                    type: "text"
+                },
+                6: {
+                    icon: 'Camera',
+                    title: "Photography Challenge",
+                    content: "Take a photo of something beautiful you see today. Could be anything - light on a wall, your breakfast, a tree.",
+                    type: "text"
+                },
+                7: {
+                    icon: 'Sparkles',
+                    title: "Treat Yourself",
+                    content: "Coupon: Watch one guilty pleasure movie/show with zero judgment",
+                    type: "coupon"
+                },
+                8: {
+                    icon: 'Palette',
+                    title: "Art Moment",
+                    content: "Doodle for 5 minutes. Doesn't have to be good. Just play.",
+                    type: "text"
+                },
+                9: {
+                    icon: 'Music',
+                    title: "Song of the Day",
+                    content: "Find one new song today. Just one. See if it clicks.",
+                    type: "music"
+                },
+                10: {
+                    icon: 'Coffee',
+                    title: "Cooking Adventure",
+                    content: "Try making something you've never made before. Pancakes at midnight count!",
+                    type: "text"
+                },
+                11: {
+                    icon: 'BookOpen',
+                    title: "Reading Time",
+                    content: "Read something for pure pleasure. Article, comic, book - whatever calls to you.",
+                    type: "text"
+                },
+                12: {
+                    icon: 'Mountain',
+                    title: "Mini Adventure",
+                    content: "Go somewhere in your area you've never been. Even if it's just a different street.",
+                    type: "text"
+                },
+                13: {
+                    icon: 'Heart',
+                    title: "Reflection",
+                    content: "What's one thing you did this year that you're proud of? Really think about it.",
+                    type: "text"
+                },
+                14: {
+                    icon: 'Sparkles',
+                    title: "Self-Gift",
+                    content: "Coupon: Buy yourself something small that brings you joy. No guilt allowed.",
+                    type: "coupon"
+                },
+                15: {
+                    icon: 'Star',
+                    title: "Midway Point!",
+                    content: "You're halfway there! Take a moment to appreciate that you showed up today.",
+                    type: "text"
+                },
+                16: {
+                    icon: 'Music',
+                    title: "Dance Break",
+                    content: "Play your favorite song and dance like nobody's watching (because they're not).",
+                    type: "music"
+                },
+                17: {
+                    icon: 'Camera',
+                    title: "Memory Lane",
+                    content: "Look at photos from a year ago. Notice how much has changed.",
+                    type: "text"
+                },
+                18: {
+                    icon: 'Coffee',
+                    title: "Cozy Evening",
+                    content: "Make your space extra cozy tonight. Blankets, dim lights, the works.",
+                    type: "text"
+                },
+                19: {
+                    icon: 'Palette',
+                    title: "Creative Freedom",
+                    content: "Make something with your hands. Doesn't matter what. Just create.",
+                    type: "text"
+                },
+                20: {
+                    icon: 'BookOpen',
+                    title: "Learning Time",
+                    content: "Learn one random fact about something you're curious about.",
+                    type: "text"
+                },
+                21: {
+                    icon: 'Heart',
+                    title: "Kindness",
+                    content: "Do something kind for yourself today. You deserve it.",
+                    type: "text"
+                },
+                22: {
+                    icon: 'Sparkles',
+                    title: "Movie Night",
+                    content: "Coupon: Full movie night setup - snacks, comfy spot, phone on silent",
+                    type: "coupon"
+                },
+                23: {
+                    icon: 'Star',
+                    title: "Gratitude",
+                    content: "Three good things from today. Go.",
+                    type: "text"
+                },
+                24: {
+                    icon: 'Gift',
+                    title: "Christmas Eve",
+                    content: "However you celebrate (or don't), take a moment to appreciate yourself for making it through another year.",
+                    type: "text"
+                },
+                25: {
+                    icon: 'Sparkles',
+                    title: "Merry Christmas!",
+                    content: "You made it! You opened every door. That's pretty special. Here's to you. 🎄",
+                    type: "text"
+                }
+            };
+
+            const iconMap = {
+                Gift, Star, Sparkles, Music, BookOpen,
+                Coffee, Heart, Camera, Palette, Mountain
+            };
+
+            const isDoorUnlocked = (day) => {
+                const doorDate = new Date(2024, 11, day);
+                return currentDate >= doorDate;
+            };
+
+            const handleDoorClick = (day) => {
+                if (isDoorUnlocked(day)) {
+                    setOpenDoor(day);
+                }
+            };
+
+            const CurrentIcon = openDoor ? iconMap[doorContent[openDoor]?.icon] : Star;
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-red-900 via-green-900 to-red-900 p-4 md:p-8">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl md:text-6xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+                                <Sparkles size={48} />
+                                My Advent Calendar
+                                <Sparkles size={48} />
+                            </h1>
+                            <p className="text-green-200 text-lg">December 2024 • 25 Days of Surprises</p>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-3 md:gap-4 mb-8">
+                            {[...Array(25)].map((_, i) => {
+                                const day = i + 1;
+                                const unlocked = isDoorUnlocked(day);
+                                const DoorIcon = iconMap[doorContent[day]?.icon] || Gift;
+                                
+                                return React.createElement('button', {
+                                    key: day,
+                                    onClick: () => handleDoorClick(day),
+                                    disabled: !unlocked,
+                                    className: `
+                                        aspect-square rounded-lg relative overflow-hidden transition-all duration-300
+                                        ${unlocked 
+                                            ? 'bg-gradient-to-br from-green-600 to-red-600 hover:scale-105 hover:shadow-2xl cursor-pointer' 
+                                            : 'bg-gray-700 cursor-not-allowed opacity-50'}
+                                        ${openDoor === day ? 'ring-4 ring-yellow-400 scale-105' : ''}
+                                    `
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'content',
+                                        className: 'absolute inset-0 flex flex-col items-center justify-center text-white'
+                                    }, [
+                                        React.createElement(DoorIcon, { key: 'icon', size: 32, className: 'mb-1' }),
+                                        React.createElement('span', { key: 'day', className: 'text-xl md:text-3xl font-bold' }, day)
+                                    ]),
+                                    !unlocked && React.createElement('div', {
+                                        key: 'locked',
+                                        className: 'absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'
+                                    }, React.createElement('span', { className: 'text-xs text-gray-300' }, 'Locked'))
+                                ]);
+                            })}
+                        </div>
+
+                        {openDoor && (
+                            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl">
+                                <div className="flex items-start gap-4 mb-4">
+                                    <div className="bg-gradient-to-br from-green-500 to-red-500 p-3 rounded-full">
+                                        <CurrentIcon size={32} color="white" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
+                                                December {openDoor}
+                                            </h2>
+                                            <button
+                                                onClick={() => setOpenDoor(null)}
+                                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                        <p className="text-green-600 font-semibold mt-1">
+                                            {doorContent[openDoor]?.title}
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="prose max-w-none">
+                                    {doorContent[openDoor]?.type === 'coupon' ? (
+                                        <div className="border-2 border-dashed border-green-500 rounded-lg p-6 bg-green-50">
+                                            <p className="text-lg text-gray-800 mb-0">{doorContent[openDoor]?.content}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-lg text-gray-700">{doorContent[openDoor]?.content}</p>
+                                    )}
+                                    
+                                    {doorContent[openDoor]?.link && (
+                                        
+                                            href={doorContent[openDoor].link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-block mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors no-underline"
+                                        >
+                                            Open Link
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-8 text-center text-green-200 text-sm">
+                            <p>Click on each day's door to reveal your daily surprise!</p>
+                            <p className="mt-2 text-xs opacity-75">Doors unlock on their corresponding dates in December</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AdventCalendar />);
+    </script>
+</body>
+</html>
