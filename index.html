@@ -1,304 +1,655 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Advent Calendar 2024</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState, useEffect } from 'react';
+import { Gift, Star, Sparkles, Music, BookOpen, Coffee, Heart, Camera, Palette, Mountain, Edit2, Save, X, Check, Plus, List, Share2, Copy, Trash2 } from 'lucide-react';
+
+const AdventCalendar = () => {
+  const [currentView, setCurrentView] = useState('loading');
+  const [calendars, setCalendars] = useState([]);
+  const [currentCalendarId, setCurrentCalendarId] = useState(null);
+  const [currentCalendar, setCurrentCalendar] = useState(null);
+  const [openDoor, setOpenDoor] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingDay, setEditingDay] = useState(null);
+  const [completedDoors, setCompletedDoors] = useState({});
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [isOwner, setIsOwner] = useState(true);
+
+  const defaultDoorContent = {
+    1: { icon: 'Star', title: "Welcome to December!", content: "Your personal advent calendar begins.", type: "text" },
+    2: { icon: 'Music', title: "Today's Vibe", content: "Listen to: Your favorite cozy winter playlist", link: "", type: "music" },
+    3: { icon: 'Coffee', title: "Self-Care Moment", content: "Make yourself a warm drink and relax.", type: "text" },
+    4: { icon: 'BookOpen', title: "Creative Prompt", content: "Write down 3 things that made you smile.", type: "text" },
+    5: { icon: 'Heart', title: "Affirmation", content: "You're doing better than you think.", type: "text" },
+    6: { icon: 'Camera', title: "Photography Challenge", content: "Take a photo of something beautiful.", type: "text" },
+    7: { icon: 'Sparkles', title: "Treat Yourself", content: "Watch one guilty pleasure movie", type: "coupon" },
+    8: { icon: 'Palette', title: "Art Moment", content: "Doodle for 5 minutes.", type: "text" },
+    9: { icon: 'Music', title: "Song of the Day", content: "Find one new song today.", type: "music" },
+    10: { icon: 'Coffee', title: "Cooking Adventure", content: "Try making something new.", type: "text" },
+    11: { icon: 'BookOpen', title: "Reading Time", content: "Read something for pleasure.", type: "text" },
+    12: { icon: 'Mountain', title: "Mini Adventure", content: "Go somewhere you've never been.", type: "text" },
+    13: { icon: 'Heart', title: "Reflection", content: "What are you proud of this year?", type: "text" },
+    14: { icon: 'Sparkles', title: "Self-Gift", content: "Buy yourself something small that brings joy.", type: "coupon" },
+    15: { icon: 'Star', title: "Midway Point!", content: "You're halfway there!", type: "text" },
+    16: { icon: 'Music', title: "Dance Break", content: "Dance like nobody's watching.", type: "music" },
+    17: { icon: 'Camera', title: "Memory Lane", content: "Look at photos from a year ago.", type: "text" },
+    18: { icon: 'Coffee', title: "Cozy Evening", content: "Make your space extra cozy tonight.", type: "text" },
+    19: { icon: 'Palette', title: "Creative Freedom", content: "Make something with your hands.", type: "text" },
+    20: { icon: 'BookOpen', title: "Learning Time", content: "Learn one random fact.", type: "text" },
+    21: { icon: 'Heart', title: "Kindness", content: "Do something kind for yourself.", type: "text" },
+    22: { icon: 'Sparkles', title: "Movie Night", content: "Full movie night setup", type: "coupon" },
+    23: { icon: 'Star', title: "Gratitude", content: "Three good things from today.", type: "text" },
+    24: { icon: 'Gift', title: "Christmas Eve", content: "Appreciate yourself for making it through.", type: "text" },
+    25: { icon: 'Sparkles', title: "Merry Christmas!", content: "You made it!", type: "text" }
+  };
+
+  const iconOptions = ['Star', 'Sparkles', 'Music', 'BookOpen', 'Coffee', 'Heart', 'Camera', 'Palette', 'Mountain', 'Gift'];
+  const iconMap = { Gift, Star, Sparkles, Music, BookOpen, Coffee, Heart, Camera, Palette, Mountain };
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedId = urlParams.get('id');
+
+    if (sharedId) {
+      await loadSharedCalendar(sharedId);
+    } else {
+      await loadMyCalendars();
+    }
+  };
+
+  const loadSharedCalendar = async (calendarId) => {
+    try {
+      const result = await window.storage.get(`calendar:${calendarId}`, true);
+      if (result) {
+        const calendar = JSON.parse(result.value);
+        setCurrentCalendar(calendar);
+        setCurrentCalendarId(calendarId);
+        setIsOwner(false);
+        setCurrentView('calendar');
+        
+        const progressKey = `progress:${calendarId}:${getViewerId()}`;
+        const progressResult = await window.storage.get(progressKey);
+        if (progressResult) {
+          setCompletedDoors(JSON.parse(progressResult.value));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading shared calendar:', error);
+      setCurrentView('list');
+    }
+  };
+
+  const loadMyCalendars = async () => {
+    try {
+      const ownerId = getOwnerId();
+      const result = await window.storage.list(`owner:${ownerId}:`);
+      
+      if (result && result.keys && result.keys.length > 0) {
+        const calendarPromises = result.keys.map(async (key) => {
+          const calData = await window.storage.get(key);
+          return calData ? JSON.parse(calData.value) : null;
+        });
+        
+        const loadedCalendars = (await Promise.all(calendarPromises)).filter(Boolean);
+        setCalendars(loadedCalendars);
+      }
+      
+      setCurrentView('list');
+    } catch (error) {
+      console.error('Error loading calendars:', error);
+      setCurrentView('list');
+    }
+  };
+
+  const getOwnerId = () => {
+    let ownerId = localStorage.getItem('adventOwnerId');
+    if (!ownerId) {
+      ownerId = 'owner_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('adventOwnerId', ownerId);
+    }
+    return ownerId;
+  };
+
+  const getViewerId = () => {
+    let viewerId = localStorage.getItem('adventViewerId');
+    if (!viewerId) {
+      viewerId = 'viewer_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('adventViewerId', viewerId);
+    }
+    return viewerId;
+  };
+
+  const createNewCalendar = async () => {
+    const name = prompt('Enter calendar name:');
+    if (!name) return;
+
+    const calendarId = 'cal_' + Math.random().toString(36).substr(2, 9);
+    const ownerId = getOwnerId();
     
-    <script type="text/babel">
-        const { useState } = React;
-        const { 
-            Gift, Star, Sparkles, Music, BookOpen, 
-            Coffee, Heart, Camera, Palette, Mountain 
-        } = lucide;
+    const newCalendar = {
+      id: calendarId,
+      name: name,
+      ownerId: ownerId,
+      doorContent: defaultDoorContent,
+      createdAt: new Date().toISOString(),
+      published: false
+    };
 
-        const AdventCalendar = () => {
-            const [openDoor, setOpenDoor] = useState(null);
-            const currentDate = new Date();
+    try {
+      await window.storage.set(`owner:${ownerId}:${calendarId}`, JSON.stringify(newCalendar));
+      setCalendars([...calendars, newCalendar]);
+      openCalendar(newCalendar);
+    } catch (error) {
+      console.error('Error creating calendar:', error);
+      alert('Failed to create calendar. Please try again.');
+    }
+  };
 
-            const doorContent = {
-                1: {
-                    icon: 'Star',
-                    title: "Welcome to December!",
-                    content: "Your personal advent calendar begins. Each day holds something special just for you.",
-                    type: "text"
-                },
-                2: {
-                    icon: 'Music',
-                    title: "Today's Vibe",
-                    content: "Listen to: Your favorite cozy winter playlist",
-                    link: "https://open.spotify.com",
-                    type: "music"
-                },
-                3: {
-                    icon: 'Coffee',
-                    title: "Self-Care Moment",
-                    content: "Make yourself a warm drink and spend 10 minutes doing absolutely nothing. Just sit, sip, and exist.",
-                    type: "text"
-                },
-                4: {
-                    icon: 'BookOpen',
-                    title: "Creative Prompt",
-                    content: "Write down 3 things that made you smile this week, no matter how small.",
-                    type: "text"
-                },
-                5: {
-                    icon: 'Heart',
-                    title: "Affirmation",
-                    content: "You're doing better than you think. Progress isn't always visible, but it's always happening.",
-                    type: "text"
-                },
-                6: {
-                    icon: 'Camera',
-                    title: "Photography Challenge",
-                    content: "Take a photo of something beautiful you see today. Could be anything - light on a wall, your breakfast, a tree.",
-                    type: "text"
-                },
-                7: {
-                    icon: 'Sparkles',
-                    title: "Treat Yourself",
-                    content: "Coupon: Watch one guilty pleasure movie/show with zero judgment",
-                    type: "coupon"
-                },
-                8: {
-                    icon: 'Palette',
-                    title: "Art Moment",
-                    content: "Doodle for 5 minutes. Doesn't have to be good. Just play.",
-                    type: "text"
-                },
-                9: {
-                    icon: 'Music',
-                    title: "Song of the Day",
-                    content: "Find one new song today. Just one. See if it clicks.",
-                    type: "music"
-                },
-                10: {
-                    icon: 'Coffee',
-                    title: "Cooking Adventure",
-                    content: "Try making something you've never made before. Pancakes at midnight count!",
-                    type: "text"
-                },
-                11: {
-                    icon: 'BookOpen',
-                    title: "Reading Time",
-                    content: "Read something for pure pleasure. Article, comic, book - whatever calls to you.",
-                    type: "text"
-                },
-                12: {
-                    icon: 'Mountain',
-                    title: "Mini Adventure",
-                    content: "Go somewhere in your area you've never been. Even if it's just a different street.",
-                    type: "text"
-                },
-                13: {
-                    icon: 'Heart',
-                    title: "Reflection",
-                    content: "What's one thing you did this year that you're proud of? Really think about it.",
-                    type: "text"
-                },
-                14: {
-                    icon: 'Sparkles',
-                    title: "Self-Gift",
-                    content: "Coupon: Buy yourself something small that brings you joy. No guilt allowed.",
-                    type: "coupon"
-                },
-                15: {
-                    icon: 'Star',
-                    title: "Midway Point!",
-                    content: "You're halfway there! Take a moment to appreciate that you showed up today.",
-                    type: "text"
-                },
-                16: {
-                    icon: 'Music',
-                    title: "Dance Break",
-                    content: "Play your favorite song and dance like nobody's watching (because they're not).",
-                    type: "music"
-                },
-                17: {
-                    icon: 'Camera',
-                    title: "Memory Lane",
-                    content: "Look at photos from a year ago. Notice how much has changed.",
-                    type: "text"
-                },
-                18: {
-                    icon: 'Coffee',
-                    title: "Cozy Evening",
-                    content: "Make your space extra cozy tonight. Blankets, dim lights, the works.",
-                    type: "text"
-                },
-                19: {
-                    icon: 'Palette',
-                    title: "Creative Freedom",
-                    content: "Make something with your hands. Doesn't matter what. Just create.",
-                    type: "text"
-                },
-                20: {
-                    icon: 'BookOpen',
-                    title: "Learning Time",
-                    content: "Learn one random fact about something you're curious about.",
-                    type: "text"
-                },
-                21: {
-                    icon: 'Heart',
-                    title: "Kindness",
-                    content: "Do something kind for yourself today. You deserve it.",
-                    type: "text"
-                },
-                22: {
-                    icon: 'Sparkles',
-                    title: "Movie Night",
-                    content: "Coupon: Full movie night setup - snacks, comfy spot, phone on silent",
-                    type: "coupon"
-                },
-                23: {
-                    icon: 'Star',
-                    title: "Gratitude",
-                    content: "Three good things from today. Go.",
-                    type: "text"
-                },
-                24: {
-                    icon: 'Gift',
-                    title: "Christmas Eve",
-                    content: "However you celebrate (or don't), take a moment to appreciate yourself for making it through another year.",
-                    type: "text"
-                },
-                25: {
-                    icon: 'Sparkles',
-                    title: "Merry Christmas!",
-                    content: "You made it! You opened every door. That's pretty special. Here's to you. 🎄",
-                    type: "text"
-                }
-            };
+  const openCalendar = (calendar) => {
+    setCurrentCalendar(calendar);
+    setCurrentCalendarId(calendar.id);
+    setIsOwner(true);
+    setCurrentView('calendar');
+    setCompletedDoors({});
+    loadProgress(calendar.id);
+  };
 
-            const iconMap = {
-                Gift, Star, Sparkles, Music, BookOpen,
-                Coffee, Heart, Camera, Palette, Mountain
-            };
+  const loadProgress = async (calendarId) => {
+    try {
+      const progressKey = `progress:${calendarId}:${getViewerId()}`;
+      const result = await window.storage.get(progressKey);
+      if (result) {
+        setCompletedDoors(JSON.parse(result.value));
+      }
+    } catch (error) {
+      console.error('Error loading progress:', error);
+    }
+  };
 
-            const isDoorUnlocked = (day) => {
-                const doorDate = new Date(2024, 11, day);
-                return currentDate >= doorDate;
-            };
+  const saveCalendar = async () => {
+    if (!isOwner || !currentCalendar) return;
 
-            const handleDoorClick = (day) => {
-                if (isDoorUnlocked(day)) {
-                    setOpenDoor(day);
-                }
-            };
+    const updatedCalendar = {
+      ...currentCalendar,
+      doorContent: currentCalendar.doorContent,
+      updatedAt: new Date().toISOString()
+    };
 
-            const CurrentIcon = openDoor ? iconMap[doorContent[openDoor]?.icon] : Star;
+    try {
+      const ownerId = getOwnerId();
+      await window.storage.set(`owner:${ownerId}:${currentCalendar.id}`, JSON.stringify(updatedCalendar));
+      setCurrentCalendar(updatedCalendar);
+      setEditMode(false);
+      setEditingDay(null);
+      
+      setCalendars(calendars.map(c => c.id === updatedCalendar.id ? updatedCalendar : c));
+    } catch (error) {
+      console.error('Error saving calendar:', error);
+      alert('Failed to save changes. Please try again.');
+    }
+  };
 
-            return (
-                <div className="min-h-screen bg-gradient-to-br from-red-900 via-green-900 to-red-900 p-4 md:p-8">
-                    <div className="max-w-6xl mx-auto">
-                        <div className="text-center mb-8">
-                            <h1 className="text-4xl md:text-6xl font-bold text-white mb-2 flex items-center justify-center gap-3">
-                                <Sparkles size={48} />
-                                My Advent Calendar
-                                <Sparkles size={48} />
-                            </h1>
-                            <p className="text-green-200 text-lg">December 2024 • 25 Days of Surprises</p>
-                        </div>
+  const publishCalendar = async () => {
+    if (!isOwner || !currentCalendar) return;
 
-                        <div className="grid grid-cols-5 gap-3 md:gap-4 mb-8">
-                            {[...Array(25)].map((_, i) => {
-                                const day = i + 1;
-                                const unlocked = isDoorUnlocked(day);
-                                const DoorIcon = iconMap[doorContent[day]?.icon] || Gift;
-                                
-                                return React.createElement('button', {
-                                    key: day,
-                                    onClick: () => handleDoorClick(day),
-                                    disabled: !unlocked,
-                                    className: `
-                                        aspect-square rounded-lg relative overflow-hidden transition-all duration-300
-                                        ${unlocked 
-                                            ? 'bg-gradient-to-br from-green-600 to-red-600 hover:scale-105 hover:shadow-2xl cursor-pointer' 
-                                            : 'bg-gray-700 cursor-not-allowed opacity-50'}
-                                        ${openDoor === day ? 'ring-4 ring-yellow-400 scale-105' : ''}
-                                    `
-                                }, [
-                                    React.createElement('div', {
-                                        key: 'content',
-                                        className: 'absolute inset-0 flex flex-col items-center justify-center text-white'
-                                    }, [
-                                        React.createElement(DoorIcon, { key: 'icon', size: 32, className: 'mb-1' }),
-                                        React.createElement('span', { key: 'day', className: 'text-xl md:text-3xl font-bold' }, day)
-                                    ]),
-                                    !unlocked && React.createElement('div', {
-                                        key: 'locked',
-                                        className: 'absolute inset-0 flex items-center justify-center bg-black bg-opacity-30'
-                                    }, React.createElement('span', { className: 'text-xs text-gray-300' }, 'Locked'))
-                                ]);
-                            })}
-                        </div>
+    const updatedCalendar = {
+      ...currentCalendar,
+      published: true,
+      publishedAt: new Date().toISOString()
+    };
 
-                        {openDoor && (
-                            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl">
-                                <div className="flex items-start gap-4 mb-4">
-                                    <div className="bg-gradient-to-br from-green-500 to-red-500 p-3 rounded-full">
-                                        <CurrentIcon size={32} color="white" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
-                                                December {openDoor}
-                                            </h2>
-                                            <button
-                                                onClick={() => setOpenDoor(null)}
-                                                className="text-gray-500 hover:text-gray-700 text-2xl"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                        <p className="text-green-600 font-semibold mt-1">
-                                            {doorContent[openDoor]?.title}
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <div className="prose max-w-none">
-                                    {doorContent[openDoor]?.type === 'coupon' ? (
-                                        <div className="border-2 border-dashed border-green-500 rounded-lg p-6 bg-green-50">
-                                            <p className="text-lg text-gray-800 mb-0">{doorContent[openDoor]?.content}</p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-lg text-gray-700">{doorContent[openDoor]?.content}</p>
-                                    )}
-                                    
-                                    {doorContent[openDoor]?.link && (
-                                        
-                                            href={doorContent[openDoor].link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-block mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors no-underline"
-                                        >
-                                            Open Link
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+    try {
+      const ownerId = getOwnerId();
+      await window.storage.set(`owner:${ownerId}:${currentCalendar.id}`, JSON.stringify(updatedCalendar));
+      await window.storage.set(`calendar:${currentCalendar.id}`, JSON.stringify(updatedCalendar), true);
+      
+      setCurrentCalendar(updatedCalendar);
+      const link = `${window.location.origin}${window.location.pathname}?id=${currentCalendar.id}`;
+      setShareLink(link);
+      setShowShareModal(true);
+    } catch (error) {
+      console.error('Error publishing calendar:', error);
+      alert('Failed to publish calendar. Please try again.');
+    }
+  };
 
-                        <div className="mt-8 text-center text-green-200 text-sm">
-                            <p>Click on each day's door to reveal your daily surprise!</p>
-                            <p className="mt-2 text-xs opacity-75">Doors unlock on their corresponding dates in December</p>
-                        </div>
-                    </div>
+  const deleteCalendar = async (calendarId) => {
+    if (!confirm('Are you sure you want to delete this calendar?')) return;
+
+    try {
+      const ownerId = getOwnerId();
+      await window.storage.delete(`owner:${ownerId}:${calendarId}`);
+      await window.storage.delete(`calendar:${calendarId}`, true);
+      
+      setCalendars(calendars.filter(c => c.id !== calendarId));
+      if (currentCalendarId === calendarId) {
+        setCurrentView('list');
+        setCurrentCalendar(null);
+        setCurrentCalendarId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting calendar:', error);
+      alert('Failed to delete calendar. Please try again.');
+    }
+  };
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareLink);
+    alert('Link copied to clipboard!');
+  };
+
+  const isDoorUnlocked = (day) => {
+    const currentDate = new Date();
+    const doorDate = new Date(2024, 11, day);
+    return currentDate >= doorDate;
+  };
+
+  const handleDoorClick = (day) => {
+    if (isDoorUnlocked(day) && !editMode) {
+      setOpenDoor(day);
+    }
+  };
+
+  const markComplete = async (day) => {
+    const updated = { ...completedDoors, [day]: !completedDoors[day] };
+    setCompletedDoors(updated);
+    
+    try {
+      const progressKey = `progress:${currentCalendarId}:${getViewerId()}`;
+      await window.storage.set(progressKey, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  };
+
+  const updateDoor = (day, field, value) => {
+    setCurrentCalendar(prev => ({
+      ...prev,
+      doorContent: {
+        ...prev.doorContent,
+        [day]: { ...prev.doorContent[day], [field]: value }
+      }
+    }));
+  };
+
+  if (currentView === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (currentView === 'list') {
+    return (
+      <div className="min-h-screen bg-gray-900 p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-4xl font-bold text-white flex items-center gap-3">
+              <Sparkles size={40} />
+              My Advent Calendars
+            </h1>
+            <button
+              onClick={createNewCalendar}
+              className="bg-white text-black px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-gray-200 transition-colors font-semibold"
+            >
+              <Plus size={20} />
+              New Calendar
+            </button>
+          </div>
+
+          {calendars.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center">
+              <Gift size={64} className="mx-auto mb-4 text-gray-400" />
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">No Calendars Yet</h2>
+              <p className="text-gray-600 mb-6">Create your first Advent calendar to get started!</p>
+              <button
+                onClick={createNewCalendar}
+                className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-semibold"
+              >
+                Create Your First Calendar
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {calendars.map(calendar => (
+                <div key={calendar.id} className="bg-white rounded-xl p-6 flex items-center justify-between hover:shadow-lg transition-shadow">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-800">{calendar.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      Created {new Date(calendar.createdAt).toLocaleDateString()}
+                      {calendar.published && ' • Published'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openCalendar(calendar)}
+                      className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                    >
+                      Open
+                    </button>
+                    {calendar.published && (
+                      <button
+                        onClick={() => {
+                          const link = `${window.location.origin}${window.location.pathname}?id=${calendar.id}`;
+                          setShareLink(link);
+                          setShowShareModal(true);
+                        }}
+                        className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        <Share2 size={18} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteCalendar(calendar.id)}
+                      className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
-            );
-        };
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<AdventCalendar />);
-    </script>
-</body>
-</html>
+  const CurrentIcon = openDoor ? iconMap[currentCalendar?.doorContent[openDoor]?.icon] : Star;
+
+  return (
+    <div className="min-h-screen relative" style={{
+      backgroundColor: '#1a1a1a',
+      backgroundImage: `
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.03) 2px, rgba(255,255,255,.03) 4px),
+        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,.03) 2px, rgba(255,255,255,.03) 4px)
+      `
+    }}>
+      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
+        <button
+          onClick={() => isOwner ? setCurrentView('list') : window.location.href = window.location.pathname}
+          className="bg-white text-black px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-200 transition-colors"
+        >
+          <List size={18} />
+          {isOwner ? 'My Calendars' : 'Create Your Own'}
+        </button>
+
+        {isOwner && (
+          <div className="flex gap-2">
+            {!editMode ? (
+              <>
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="bg-white text-black px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-200 transition-colors"
+                >
+                  <Edit2 size={18} />
+                  Customize
+                </button>
+                <button
+                  onClick={publishCalendar}
+                  className="bg-white text-black px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-200 transition-colors"
+                >
+                  <Share2 size={18} />
+                  {currentCalendar?.published ? 'Share' : 'Publish'}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={saveCalendar}
+                className="bg-white text-black px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-200 transition-colors shadow-lg"
+              >
+                <Save size={18} />
+                Save Changes
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="max-w-6xl mx-auto p-4 md:p-8 pt-20">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+            <Sparkles className="w-8 h-8 md:w-12 md:h-12" />
+            {currentCalendar?.name || 'My Advent Calendar'}
+            <Sparkles className="w-8 h-8 md:w-12 md:h-12" />
+          </h1>
+          <p className="text-gray-400 text-lg">December 2024 • 25 Days of Surprises</p>
+          {!isOwner && (
+            <p className="text-gray-500 text-sm mt-2">Shared calendar • Your progress is saved privately</p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-5 gap-3 md:gap-4 mb-8">
+          {[...Array(25)].map((_, i) => {
+            const day = i + 1;
+            const unlocked = isDoorUnlocked(day);
+            const DoorIcon = iconMap[currentCalendar?.doorContent[day]?.icon] || Gift;
+            const isCompleted = completedDoors[day];
+            
+            return (
+              <div key={day} className="relative">
+                <button
+                  onClick={() => editMode ? setEditingDay(day) : handleDoorClick(day)}
+                  disabled={!unlocked && !editMode}
+                  className={`
+                    w-full aspect-square rounded-lg relative overflow-hidden transition-all duration-300 border-2
+                    ${unlocked || editMode
+                      ? 'bg-white hover:scale-105 hover:shadow-2xl cursor-pointer border-gray-300' 
+                      : 'bg-gray-800 cursor-not-allowed opacity-50 border-gray-700'}
+                    ${openDoor === day ? 'ring-4 ring-gray-400 scale-105' : ''}
+                    ${isCompleted ? 'border-green-500' : ''}
+                  `}
+                >
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-black">
+                    <DoorIcon className="w-6 h-6 md:w-8 md:h-8 mb-1" />
+                    <span className="text-xl md:text-3xl font-bold">{day}</span>
+                  </div>
+                  {!unlocked && !editMode && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60">
+                      <span className="text-xs text-gray-300">Locked</span>
+                    </div>
+                  )}
+                  {isCompleted && (
+                    <div className="absolute top-1 right-1 bg-green-500 rounded-full p-1">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="text-center text-gray-400 text-sm">
+          <p>Click on each day's door to reveal your daily surprise!</p>
+          <p className="mt-2 text-xs opacity-75">Doors unlock on their corresponding dates in December</p>
+        </div>
+      </div>
+
+      {openDoor && !editMode && currentCalendar && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onClick={() => setOpenDoor(null)}>
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl max-w-2xl w-full relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setOpenDoor(null)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="flex items-start gap-4 mb-4">
+              <div className="bg-gradient-to-br from-gray-800 to-black p-3 rounded-full">
+                <CurrentIcon className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
+                  December {openDoor}
+                </h2>
+                <p className="text-gray-600 font-semibold mt-1">
+                  {currentCalendar.doorContent[openDoor]?.title}
+                </p>
+              </div>
+            </div>
+            
+            <div className="prose max-w-none">
+              {currentCalendar.doorContent[openDoor]?.type === 'coupon' ? (
+                <div className="border-2 border-dashed border-black rounded-lg p-6 bg-gray-100">
+                  <p className="text-lg text-gray-800 mb-0">{currentCalendar.doorContent[openDoor]?.content}</p>
+                </div>
+              ) : (
+                <p className="text-lg text-gray-700">{currentCalendar.doorContent[openDoor]?.content}</p>
+              )}
+              
+              {currentCalendar.doorContent[openDoor]?.link && (
+                <a
+                  href={currentCalendar.doorContent[openDoor].link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-4 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors no-underline"
+                >
+                  Open Link
+                </a>
+              )}
+            </div>
+
+            <button
+              onClick={() => markComplete(openDoor)}
+              className={`mt-6 w-full py-3 rounded-lg font-semibold transition-colors ${
+                completedDoors[openDoor]
+                  ? 'bg-green-500 text-white hover:bg-green-600'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+              }`}
+            >
+              {completedDoors[openDoor] ? '✓ Completed' : 'Mark as Complete'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editingDay && editMode && currentCalendar && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onClick={() => setEditingDay(null)}>
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl max-w-2xl w-full relative overflow-y-auto max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setEditingDay(null)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Edit Day {editingDay}</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Icon</label>
+                <select
+                  value={currentCalendar.doorContent[editingDay]?.icon}
+                  onChange={(e) => updateDoor(editingDay, 'icon', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                >
+                  {iconOptions.map(icon => (
+                    <option key={icon} value={icon}>{icon}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={currentCalendar.doorContent[editingDay]?.title || ''}
+                  onChange={(e) => updateDoor(editingDay, 'title', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                  placeholder="Enter title..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Content</label>
+                <textarea
+                  value={currentCalendar.doorContent[editingDay]?.content || ''}
+                  onChange={(e) => updateDoor(editingDay, 'content', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent h-32"
+                  placeholder="Enter content..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Type</label>
+                <select
+                  value={currentCalendar.doorContent[editingDay]?.type}
+                  onChange={(e) => updateDoor(editingDay, 'type', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                >
+                  <option value="text">Text</option>
+                  <option value="coupon">Coupon</option>
+                  <option value="music">Music</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Link (optional)</label>
+                <input
+                  type="url"
+                  value={currentCalendar.doorContent[editingDay]?.link || ''}
+                  onChange={(e) => updateDoor(editingDay, 'link', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <button
+                onClick={() => setEditingDay(null)}
+                className="w-full py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
+          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-2xl max-w-lg w-full relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Share2 size={32} className="text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Calendar Published!</h2>
+              <p className="text-gray-600">Share this link with anyone you want to give access to your calendar</p>
+            </div>
+
+            <div className="bg-gray-100 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-600 mb-2 font-semibold">Your shareable link:</p>
+              <p className="text-sm text-gray-800 break-all">{shareLink}</p>
+            </div>
+
+            <button
+              onClick={copyShareLink}
+              className="w-full py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+            >
+              <Copy size={18} />
+              Copy Link
+            </button>
+
+            <p className="text-xs text-gray-500 mt-4 text-center">
+              Anyone with this link can view your calendar, but only you can edit it. Each viewer's progress is saved separately.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdventCalendar;
